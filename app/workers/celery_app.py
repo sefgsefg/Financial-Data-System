@@ -1,10 +1,14 @@
+import os
 from celery import Celery
 
-# 初始化 Celery，使用 Redis 作為 Broker 與 Backend
+# 優先讀取環境變數 (Docker 環境會提供)，否則退回 localhost (本機開發用)
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_BACKEND = os.getenv("REDIS_BACKEND", "redis://localhost:6379/1")
+
 celery_app = Celery(
     "fin_worker",
-    broker="redis://localhost:6379/0",
-    backend="redis://localhost:6379/1",
+    broker=REDIS_URL,
+    backend=REDIS_BACKEND,
     include=['app.workers.tasks']
 )
 
@@ -14,7 +18,6 @@ celery_app.conf.update(
     result_serializer='json',
     timezone='Asia/Taipei',
     enable_utc=True,
-    # 預設任務超時設定，防止 Worker 卡死
     task_time_limit=120,
     task_soft_time_limit=100,
 )

@@ -51,7 +51,32 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
 
-    
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_HOST=postgres
+      - CLICKHOUSE_HOST=clickhouse
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_BACKEND=redis://redis:6379/1
+    depends_on:
+      - redis
+      - postgres
+      - clickhouse
+
+  worker:
+    build: .
+    # 在 Docker 中不需要 --pool=solo，我們讓它發揮多進程效能
+    command: celery -A app.workers.celery_app worker --loglevel=info
+    environment:
+      - POSTGRES_HOST=postgres
+      - CLICKHOUSE_HOST=clickhouse
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_BACKEND=redis://redis:6379/1
+    depends_on:
+      - redis
+      - api  
 
 volumes:
   pg_data:
