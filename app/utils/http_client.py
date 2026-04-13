@@ -34,3 +34,40 @@ async def fetch_json_data(url: str, timeout: float = 10.0) -> Optional[dict]:
         except httpx.RequestError as exc:
             logger.error(f"網路連線錯誤於請求 {exc.request.url}: {exc}")
             raise
+        
+from playwright.async_api import async_playwright
+
+async def fetch_price_with_playwright(symbol: str) -> float:
+    """
+    使用 Playwright 開啟無頭瀏覽器，突破 API 限制，直接從網頁 DOM 抓取價格。
+    這裡以 Yahoo Finance 網頁版為例。
+    """
+    async with async_playwright() as p:
+        # 啟動 Chromium (headless=True 代表不顯示實體視窗，節省資源)
+        browser = await p.chromium.launch(headless=True)
+        # 偽裝成真實使用者環境
+        context = await browser.new_context(
+            user_agent=random.choice(USER_AGENTS),
+            viewport={'width': 1280, 'height': 720}
+        )
+        page = await context.new_page()
+        
+        try:
+            url = f"https://finance.yahoo.com/quote/{symbol}"
+            # 前往網頁，等待網路閒置 (代表 JS 渲染完畢)
+            await page.goto(url, wait_until="networkidle", timeout=15000)
+            
+            # 尋找股價的 DOM 元素 (Yahoo Finance 的股價通常帶有 data-testid="qsp-price")
+            # 實務上 DOM 結構會變，需視目標網站調整
+            price_element = page.locator('fin-streamer[data-field="regularMarketPrice"]').first
+            price_text = await price_element.inner_text()
+            
+            # 清理字串並轉換為浮點數 (例如 "1,990.00" -> 1990.0)
+            clean_price = float(price_text.replace(',', ''))
+            return clean_price
+            
+        except Exception as e:
+            logger.error(f"Playwright 抓取失敗: {e}")
+            raise
+        finally:
+            await browser.close()
