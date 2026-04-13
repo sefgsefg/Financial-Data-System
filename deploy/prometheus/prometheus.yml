@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s # 每 15 秒收集一次數據
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'fin_data_fastapi'
+    metrics_path: '/metrics'
+    static_configs:
+      # 在 Docker 網路中，host.docker.internal 可以指向本機運行的 FastAPI
+      - targets: ['host.docker.internal:8000']
